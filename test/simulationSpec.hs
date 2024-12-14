@@ -2,7 +2,7 @@
 module SimulationSpec (spec) where
 
 import Test.Hspec
-import DistributedIO.Simulation (simulateMachine)
+import DistributedIO.Core (simulateMachine)
 
 spec :: Spec
 spec = do

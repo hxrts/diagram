@@ -2,7 +2,7 @@ module EvalGraphSpec (spec) where
 
 import Test.Hspec
 import DistributedIO.Core (DistributedIO(..))
-import DistributedIO.EvalGraph (EvalGraph(..), evaluateGraph)
+import DistributedIO.Code (EvalGraph(..), evaluateGraph)
 
 -- A mock DistributedIO action
 mockDistributedAction :: String -> DistributedIO String

@@ -12,29 +12,47 @@
       haskellPackages = pkgs.haskellPackages;
     in {
       # Main executable package
-      packages.default = haskellPackages.callCabal2nix "diagram" ./. {
-        isLibrary = false;
-        isExecutable = true;
-        buildTarget = "test"; # Points to the test component in the Cabal file
+      packages.default = haskellPackages.developPackage {
+        name = "diagram";
+        root = ./.;
       };
 
       # Development shell
-      devShell = pkgs.mkShell {
-        buildInputs = with haskellPackages; [
-          ghc                      # The Glasgow Haskell Compiler
-          cabal-install            # Tool for building and managing Haskell projects
-          hlint                    # Haskell linter
-          haskell-language-server  # For IDE integration
-          ormolu                   # Code formatter
-          hspec                    # Test framework
+      devShells.default = pkgs.mkShell {
+        packages = with haskellPackages; [
+          ghc
+          cabal-install
+          hlint
+          haskell-language-server  # for IDE integration
+          ormolu                   # code formatter
+          hspec                    # test framework
         ];
       };
 
       # Test suite
-      checks.defaultTest = haskellPackages.callCabal2nix "diagram-tests" ./. {
-        isLibrary = false;
-        isExecutable = true;
-        buildTarget = "test";
-      };
+      checks.tests = pkgs.runCommand "tests" {
+        buildInputs = with haskellPackages; [
+          ghc
+          cabal-install
+          hspec
+          hspec-discover
+        ];
+        src = ./.;
+      } ''
+        export HOME=$(mktemp -d)
+        mkdir -p $HOME/.config/cabal
+
+        # Copy source files
+        cp -r $src/* .
+
+        # Run cabal test
+        cabal update
+        cabal build
+        cabal test
+
+        # Write success marker to the output directory
+        mkdir -p $out
+        echo "Tests passed successfully!" > $out/result.txt
+      '';
     });
 }

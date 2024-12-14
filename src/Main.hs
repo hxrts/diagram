@@ -1,8 +1,6 @@
 module Main where
 
-import DistributedIO.Core (DistributedIO, distributedAction)
-import DistributedIO.EvalGraph (EvalGraph(..), evaluateGraph)
-import DistributedIO.Simulation (simulateMachine)
+import DistributedIO.Core
 
 main :: IO ()
 main = do
