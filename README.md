@@ -11,7 +11,6 @@ The program graph defined in the configuration json file has two abstractions:
   - `Concurrency`: sibling nodes in Concurrent blocks are not dependent and can run independent of one another
   - `Atomicity`: all tasks in an Atomic block must succeed, or the entire block rolls back
 
-
 **Environment Preparation**
 The environment is prepared by reading a configuration file that defines the machines and the DAG (Directed Acyclic Graph) structure. The configuration is parsed and converted into a graph representation.
 
@@ -21,14 +20,12 @@ Machines are initialized with their respective MachineIDs, program subgraphs, th
 **Program Evaluation**
 The DAG is executed node-by-node, respecting dependencies and block constraints. Computations are executed on the correct machines via `scheduleMachine`. Rollbacks are triggered when a timeout or failure occurs, ensuring consistent system state.
 
-
 ## Files
 - **`Main.hs`**: Main entry point of the program. Reads a configuration file, initializes the DAG, schedules tasks on machines, and executes the computation.
 - **`ProgramInstantiation.hs`**: Converts the configuration file into machine configurations and program schedules that are used to initialize the program environment.
 - **`ProgramEvaluation.hs`**: Implements the evaluation logic, including atomicity, concurrency, rollbacks, and freeing.
 - **`Spec.hs`**: Defines the test suite for validating program behavior.
 - **`TrainHotelRetry.json`**: Simulates a retry scenario where the first booking attempt fails due to a timeout, and the second booking attempt succeeds.
-
 
 ## Install and Run
 Clone the repo and run the following command to create a development shell with all the necessary dependencies:
@@ -43,13 +40,35 @@ nix run .#diagram -- <path-to-config.json>
 ### Train Hotel Test
 This test simulates a scenario where a train booking from Berlin to Amsterdam must be made atomically with a hotel in Amsterdam. If this booking fails due to a timeout, a second attempt is made to atomically book a train from Berlin to Paris with a hotel in Paris.
 
+```mermaid
+graph TD
+    subgraph Atomic Block 2
+        C[MachineA: Train Berlin to Paris Hold]
+        D[MachineC: Paris Hotel Reserve]
+        C --> D
+    end
+    subgraph Atomic Block 1
+        A[MachineA: Train Berlin to Amsterdam Hold]
+        B[MachineB: Amsterdam Hotel Reserve]
+        A --> B
+    end
+```
+
 Run the tests with the following:
 ```bash
 nix develop --command hspec
 ```
 Expected terminal output:
 ```yaml
-test distributed computation
+Begin program evaluation
+MachineID: MachineA
+Latency: 100
+Timeout: 400
+Subgraph: Node "MachineA" (DistributedIO {lock = <function>, commit = <function>, rollback = <function>, free = <function>}) [Node "MachineB" (DistributedIO {lock = <function>, commit = <function>, rollback = <function>, free = <function>}) []]
+MachineID: MachineA
+Latency: 100
+Timeout: 400
+Subgraph: Node "MachineA" (DistributedIO {lock = <function>, commit = <function>, rollback = <function>, free = <function>}) [Node "MachineC" (DistributedIO {lock = <function>, commit = <function>, rollback = <function>, free = <function>}) []]
 Machine MachineA locking: Train Berlin to Amsterdam Hold
 Machine MachineB locking: Amsterdam Hotel Reserve
 Machine MachineA rolling back: Train Berlin to Amsterdam Hold Canceled

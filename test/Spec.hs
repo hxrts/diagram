@@ -7,31 +7,54 @@ module Main (main) where
 import Test.Hspec
 import Data.Aeson (eitherDecode)
 import qualified Data.ByteString.Lazy as B
-import ProgramInstantiation (Config(..), MachineConfig(..), ControlFlowGraph(..), convertGraph, splitGraphByMachine)
+import ProgramInstantiation (Config(..), MachineConfig(..), Graph(..), convertGraph, splitGraphByMachine)
 import ProgramEvaluation (evaluateProgram, scheduleMachine)
+import System.IO (hFlush, stdout)
+import System.IO.Silently (capture)
 
 -- Load a configuration file and evaluate it with a specific timeout
-loadAndEvaluateConfig :: FilePath -> IO (Maybe [String])
+loadAndEvaluateConfig :: FilePath -> IO (Maybe [String], String)
 loadAndEvaluateConfig configFilePath = do
   -- Read the configuration file
   configData <- B.readFile configFilePath
   -- Parse the configuration file into the `Config` type
   case eitherDecode configData of
     Left err -> error $ "Failed to parse config: " ++ err
-    Right (Config machineConfigs dagConfig) -> do
+    Right (Config machineConfigs graphConfig) -> do
       -- Convert the DAG configuration into a graph representation
-      let controlFlowGraph = convertGraph dagConfig
+      let controlFlowGraph = convertGraph graphConfig
       -- Schedule the graph computation across the available machines
-      let scheduledProgram = scheduleMachine (map machineID machineConfigs) controlFlowGraph
-      -- Evaluate the scheduled program with the provided timeout
-      evaluateProgram scheduledProgram machineConfigs
+      let graphConfig = scheduleMachine (map machineID machineConfigs) controlFlowGraph
+      -- Split the graph by machine
+      let machineSubgraphs = splitGraphByMachine graphConfig
+      -- Capture the output of the evaluation
+      output <- capture $ do
+        hFlush stdout
+        -- Print machine configurations
+        mapM_ (printMachineConfig machineConfigs) machineSubgraphs
+        result <- evaluateProgram graphConfig machineConfigs
+        hFlush stdout
+        return result
+      return output
+
+-- Print machine configuration
+printMachineConfig :: [MachineConfig] -> (MachineID, Graph String) -> IO ()
+printMachineConfig machineConfigs (machineID, subgraph) = do
+  let config = case lookup machineID (map (\mc -> (machineID mc, mc)) machineConfigs) of
+                 Just mc -> mc
+                 Nothing -> error $ "Configuration not found for machine " ++ machineID
+  putStrLn $ "\nMachineID: " ++ machineID
+  putStrLn $ "Latency: " ++ show (latency config)
+  putStrLn $ "Timeout: " ++ show (timeout config)
+  putStrLn $ "Subgraph: " ++ show subgraph
 
 -- Test suite
 main :: IO ()
 main = hspec $ do
-  describe "test distributed computation" $ do
+  describe "\nBegin program evaluation" $ do
     -- Test case for retrying Train and Hotel Booking after initial failure
     it "retries Train and Hotel Booking after initial failure" $ do
-      result <- loadAndEvaluateConfig "test/TrainHotelRetry.json"
+      (result, output) <- loadAndEvaluateConfig "test/TrainHotelRetry.json"
+      putStrLn output
       result `shouldBe` Just ["Committed by MachineA: Train Berlin to Paris Hold",
                               "Committed by MachineC: Paris Hotel Reserve"]
