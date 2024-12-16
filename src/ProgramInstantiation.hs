@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
-module ProgramInstantiation (EnvironmentConfig(..), MachineConfig(..), Graph(..), GraphConfig(..), Notification, DistributedIO(..), convertGraph, splitGraphByMachine) where
+module ProgramInstantiation (EnvironmentConfig(..), MachineConfig(..), Graph(..), GraphConfig(..), Notification, DistributedIO(..), convertGraph, splitGraphByMachine, MachineID) where
 
 import GHC.Generics (Generic)
 import Data.Aeson (FromJSON, ToJSON)
@@ -54,13 +54,13 @@ instance Show (DistributedIO result) where
 
 -- Converts configuration structure into a global Graph
 convertGraph :: GraphConfig -> [MachineConfig] -> Graph Notification
-convertGraph (EvalNode machine resource rescindMessage notifyMessage dependencies) machineConfigs =
-  let config = case lookup machine (map (\mc -> (machineID mc, mc)) machineConfigs) of
+convertGraph (EvalNode machine resource rescindMessage notifyMessage dependencies) [machineConfig] =
+  let config = case lookup machine (map (\mc -> (machineID mc, mc)) [machineConfig]) of
                  Just mc -> mc
                  Nothing -> error $ "Configuration not found for machine " ++ machine
-  in Node machine (distributedAction resource rescindMessage notifyMessage config) (map (`convertGraph` machineConfigs) dependencies)
-convertGraph (EvalAtomic subgraphs) machineConfigs = Atomic (map (`convertGraph` machineConfigs) subgraphs)
-convertGraph (EvalConcurrent subgraphs) machineConfigs = Concurrent (map (`convertGraph` machineConfigs) subgraphs)
+  in Node machine (distributedAction resource rescindMessage notifyMessage config) (map (`convertGraph` [machineConfig]) dependencies)
+convertGraph (EvalAtomic subgraphs) [machineConfig] = Atomic (map (`convertGraph` [machineConfig]) subgraphs)
+convertGraph (EvalConcurrent subgraphs) [machineConfig] = Concurrent (map (`convertGraph` [machineConfig]) subgraphs)
 
 -- Split the global Graph into subgraphs for each machine
 splitGraphByMachine :: Graph result -> [(MachineID, Graph result)]
@@ -73,11 +73,11 @@ splitGraphByMachine graph = case graph of
 -- Create a DistributedIO action
 distributedAction :: String -> String -> String -> MachineConfig -> DistributedIO Notification
 distributedAction resource rescindMessage notifyMessage config = DistributedIO
-  { lock = \machineID -> putStrLn $ "Machine " ++ machineID ++ " locking: " ++ resource
-  , free = \machineID message -> putStrLn $ "Machine " ++ machineID ++ " freeing: " ++ resource ++ " with message: " ++ message
-  , commit = \machineID -> do
-      putStrLn $ "Machine " ++ machineID ++ " committing: " ++ resource
+  { lock = \mID -> putStrLn $ "Machine " ++ mID ++ " locking: " ++ resource
+  , free = \mID message -> putStrLn $ "Machine " ++ mID ++ " freeing: " ++ resource ++ " with message: " ++ message
+  , commit = \mID -> do
+      putStrLn $ "Machine " ++ mID ++ " committing: " ++ resource
       threadDelay (latency config)
-      return $ "Committed by " ++ machineID ++ ": " ++ resource
-  , rescind = \machineID -> putStrLn $ "Machine " ++ machineID ++ " rescinding: " ++ rescindMessage
+      return $ "Committed by " ++ mID ++ ": " ++ resource
+  , rescind = \mID -> putStrLn $ "Machine " ++ mID ++ " rescinding: " ++ rescindMessage
   }

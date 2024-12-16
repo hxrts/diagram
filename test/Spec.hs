@@ -20,27 +20,27 @@ loadAndEvaluateConfig configFilePath = do
   -- Parse the configuration file into the `Config` type
   case eitherDecode configData of
     Left err -> error $ "Failed to parse config: " ++ err
-    Right (Config machineConfigs graphConfig) -> do
+    Right (Config [MachineConfig] graphConfig) -> do
       -- Convert the DAG configuration into a graph representation
       let controlFlowGraph = convertGraph graphConfig
       -- Schedule the graph computation across the available machines
-      let graphConfig = scheduleMachine (map machineID machineConfigs) controlFlowGraph
+      let graphConfig = scheduleMachine (map machineID [MachineConfig]) controlFlowGraph
       -- Split the graph by machine
-      let machineSubgraphs = splitGraphByMachine graphConfig
+      let [SubgraphConfig] = splitGraphByMachine graphConfig
       -- Capture the output of the evaluation
       output <- capture $ do
         hFlush stdout
         -- Print machine configurations
-        mapM_ (printMachineConfig machineConfigs) machineSubgraphs
-        result <- evaluateProgram graphConfig machineConfigs
+        mapM_ (printMachineConfig [MachineConfig]) [SubgraphConfig]
+        result <- evaluateProgram graphConfig [MachineConfig]
         hFlush stdout
         return result
       return output
 
 -- Print machine configuration
 printMachineConfig :: [MachineConfig] -> (MachineID, Graph String) -> IO ()
-printMachineConfig machineConfigs (machineID, subgraph) = do
-  let config = case lookup machineID (map (\mc -> (machineID mc, mc)) machineConfigs) of
+printMachineConfig [MachineConfig] (machineID, subgraph) = do
+  let config = case lookup machineID (map (\mc -> (machineID mc, mc)) [MachineConfig]) of
                  Just mc -> mc
                  Nothing -> error $ "Configuration not found for machine " ++ machineID
   putStrLn $ "MachineID: " ++ machineID

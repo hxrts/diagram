@@ -14,7 +14,6 @@ import ProgramInstantiation (convertGraph, splitGraphByMachine, EnvironmentConfi
 type MachineID = String
 type GraphConfig = Graph Notification
 type SubgraphConfig = (MachineID, Graph Notification)
-type SubgraphConfigs = [SubgraphConfig]
 
 -- Main function that drives the program, taking a configuration file path as input
 main :: IO ()
@@ -24,8 +23,8 @@ main = do
     [] -> putStrLn "Usage: Main <config-file-path>"           -- Notify the user about required arguments
     (configFile : _) -> do
       environmentConfig <- prepareEnvironment configFile
-      let subgraphConfigs = splitGraphByMachine (graph environmentConfig)
-      initializeMachines (machines environmentConfig) subgraphConfigs
+      let [subgraphConfig] = splitGraphByMachine (graph environmentConfig)
+      initializeMachines (machines environmentConfig) [subgraphConfig]
       evaluateProgram environmentConfig
 
 -- Prepare the program graph and machine configs
@@ -37,11 +36,11 @@ prepareEnvironment configFile = do
     Right environmentConfig -> return environmentConfig
 
 -- Initialize machines with their respective subgraphs, latencies, and timeouts
-initializeMachines :: [MachineConfig] -> SubgraphConfigs -> IO ()
-initializeMachines machineConfigs subgraphConfigs = mapM_ initializeMachine subgraphConfigs
+initializeMachines :: [MachineConfig] -> [SubgraphConfig] -> IO ()
+initializeMachines [machineConfig] [subgraphConfig] = mapM_ initializeMachine [subgraphConfig]
   where
     initializeMachine (machineID, subgraph) = do
-      let config = case lookup machineID [(machineID mc, mc) | mc <- machineConfigs] of
+      let config = case lookup machineID [(machineID mc, mc) | mc <- [machineConfig]] of
                      Just mc -> mc
                      Nothing -> error $ "Configuration not found for machine " ++ machineID
       putStrLn $ "Initializing machine " ++ machineID

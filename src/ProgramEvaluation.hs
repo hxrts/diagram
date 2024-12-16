@@ -7,26 +7,26 @@ import ProgramInstantiation (EnvironmentConfig(..), MachineConfig(..), Graph(..)
 
 -- Evaluate the program
 evaluateProgram :: EnvironmentConfig -> IO (Maybe [result])
-evaluateProgram (EnvironmentConfig machineConfigs graphConfig) = do
-  let graph = convertGraph graphConfig machineConfigs
-  evaluateGraph graph machineConfigs
+evaluateProgram (EnvironmentConfig [machineConfig] graphConfig) = do
+  let graph = convertGraph graphConfig [machineConfig]
+  evaluateGraph graph [machineConfig]
 
 -- Evaluate the graph
 evaluateGraph :: Graph result -> [MachineConfig] -> IO (Maybe [result])
-evaluateGraph graph machineConfigs = case graph of
+evaluateGraph graph [machineConfig] = case graph of
   Node machine computation dependencies -> do
-    let config = case lookup machine (map (\mc -> (machineID mc, mc)) machineConfigs) of
+    let config = case lookup machine (map (\mc -> (machineID mc, mc)) [machineConfig]) of
                    Just mc -> mc
                    Nothing -> error $ "Configuration not found for machine " ++ machine
-    evaluateNode config computation dependencies machineConfigs
-  Atomic subgraphs -> evaluateAtomic subgraphs machineConfigs
-  Concurrent subgraphs -> evaluateConcurrent subgraphs machineConfigs
+    evaluateNode config computation dependencies [machineConfig]
+  Atomic subgraphs -> evaluateAtomic subgraphs [machineConfig]
+  Concurrent subgraphs -> evaluateConcurrent subgraphs [machineConfig]
 
 -- Evaluate a single Node
 evaluateNode :: MachineConfig -> DistributedIO result -> [Graph result] -> [MachineConfig] -> IO (Maybe [result])
-evaluateNode config computation dependencies machineConfigs = do
+evaluateNode config computation dependencies [machineConfig] = do
   lock computation (machineID config)
-  depResults <- traverse (`evaluateGraph` machineConfigs) dependencies
+  depResults <- traverse (`evaluateGraph` [machineConfig]) dependencies
   maybeRollback depResults $ do
     result <- race (threadDelay (timeout config)) (commit computation (machineID config))
     case result of
@@ -39,14 +39,14 @@ evaluateNode config computation dependencies machineConfigs = do
 
 -- Evaluate an Atomic block
 evaluateAtomic :: [Graph result] -> [MachineConfig] -> IO (Maybe [result])
-evaluateAtomic subgraphs machineConfigs = do
-  results <- traverse (`evaluateGraph` machineConfigs) subgraphs
+evaluateAtomic subgraphs [machineConfig] = do
+  results <- traverse (`evaluateGraph` [machineConfig]) subgraphs
   maybeRollback results $ return $ Just (concat (catMaybes results))
 
 -- Evaluate Concurrent subgraphs
 evaluateConcurrent :: [Graph result] -> [MachineConfig] -> IO (Maybe [result])
-evaluateConcurrent subgraphs machineConfigs = do
-  results <- mapConcurrently (`evaluateGraph` machineConfigs) subgraphs
+evaluateConcurrent subgraphs [machineConfig] = do
+  results <- mapConcurrently (`evaluateGraph` [machineConfig]) subgraphs
   return $ fmap concat (sequence results)
 
 -- Check dependency results and trigger rollback if any dependency fails
