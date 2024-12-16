@@ -3,7 +3,7 @@ module ProgramEvaluation (evaluateProgram, scheduleMachine) where
 import Control.Concurrent.Async (mapConcurrently, race)
 import Control.Concurrent (threadDelay)
 import Data.Maybe (catMaybes, isNothing)
-import ProgramInstantiation (EnvironmentConfig(..), MachineConfig(..), Graph(..), DistributedIO)
+import ProgramInstantiation (EnvironmentConfig(..), MachineConfig(..), Graph(..), DistributedIO, MachineID)
 
 -- Evaluate the program
 evaluateProgram :: EnvironmentConfig -> IO (Maybe [result])
