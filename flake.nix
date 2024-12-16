@@ -23,7 +23,7 @@
           ghc
           cabal-install
           hlint
-          haskell-language-server  # for IDE integration
+          haskell-language-server  # IDE integration
           ormolu                   # code formatter
           hspec                    # test framework
         ];
@@ -35,7 +35,6 @@
           ghc
           cabal-install
           hspec
-          hspec-discover
         ];
         src = ./.;
       } ''
