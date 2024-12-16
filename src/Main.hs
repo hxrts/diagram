@@ -8,12 +8,13 @@ import Data.Aeson (FromJSON, ToJSON, eitherDecode)
 import System.Environment (getArgs)
 import qualified Data.ByteString.Lazy as B
 import ProgramEvaluation (evaluateProgram, scheduleMachine)
-import ProgramInstantiation (convertGraph, splitGraphByMachine, Config(..), MachineConfig(..), Graph(..), Notification)
+import ProgramInstantiation (convertGraph, splitGraphByMachine, EnvironmentConfig(..), MachineConfig(..), Graph(..), Notification)
 
 -- Type aliases
 type MachineID = String
 type GraphConfig = Graph Notification
 type SubgraphConfig = (MachineID, Graph Notification)
+type SubgraphConfigs = [SubgraphConfig]
 
 -- Main function that drives the program, taking a configuration file path as input
 main :: IO ()
@@ -22,25 +23,22 @@ main = do
   case args of
     [] -> putStrLn "Usage: Main <config-file-path>"           -- Notify the user about required arguments
     (configFile : _) -> do
-      (graphConfig, machineConfigs) <- prepareEnvironment configFile
-      let machineSubgraphs = splitGraphByMachine graphConfig
-      initializeMachines machineConfigs machineSubgraphs
-      evaluateProgram graphConfig machineConfigs
+      environmentConfig <- prepareEnvironment configFile
+      let subgraphConfigs = splitGraphByMachine (graph environmentConfig)
+      initializeMachines (machines environmentConfig) subgraphConfigs
+      evaluateProgram environmentConfig
 
 -- Prepare the program graph and machine configs
-prepareEnvironment :: FilePath -> IO (GraphConfig, [MachineConfig])
+prepareEnvironment :: FilePath -> IO EnvironmentConfig
 prepareEnvironment configFile = do
   configData <- B.readFile configFile                        -- Read the configuration file as a ByteString
-  case eitherDecode configData of                            -- Parse the configuration file into the `Config` type
+  case eitherDecode configData of                            -- Parse the configuration file into the `EnvironmentConfig` type
     Left err -> error $ "Failed to parse config: " ++ err
-    Right (Config machineConfigs graphConfig) -> do
-      let graph = convertGraph graphConfig                   -- Convert the DAG configuration into a graph representation
-          graphConfig = scheduleMachine (map machineID machineConfigs) graph -- Schedule the graph computation across the available machines
-      return (graphConfig, machineConfigs)
+    Right environmentConfig -> return environmentConfig
 
 -- Initialize machines with their respective subgraphs, latencies, and timeouts
-initializeMachines :: [MachineConfig] -> [SubgraphConfig] -> IO ()
-initializeMachines machineConfigs machineSubgraphs = mapM_ initializeMachine machineSubgraphs
+initializeMachines :: [MachineConfig] -> SubgraphConfigs -> IO ()
+initializeMachines machineConfigs subgraphConfigs = mapM_ initializeMachine subgraphConfigs
   where
     initializeMachine (machineID, subgraph) = do
       let config = case lookup machineID [(machineID mc, mc) | mc <- machineConfigs] of
@@ -52,10 +50,10 @@ initializeMachines machineConfigs machineSubgraphs = mapM_ initializeMachine mac
       putStrLn $ "Timeout: " ++ show (timeout config)
 
 -- Evaluate the scheduled program and report outcome
-evaluateProgram :: GraphConfig -> [MachineConfig] -> IO ()
-evaluateProgram graphConfig machineConfigs = do
-  putStrLn "Evaluating distributed computation..."           -- Notify the user about the evaluation process
-  results <- evaluateProgram graphConfig machineConfigs  -- Run the evaluation and capture the results
+evaluateProgram :: EnvironmentConfig -> IO ()
+evaluateProgram environmentConfig = do
+  putStrLn "Evaluating program..."           -- Notify the user about the evaluation process
+  results <- evaluateProgram environmentConfig               -- Run the evaluation and capture the results
   putStrLn $ case results of                                 -- Print the results based on success or failure
-    Just r -> "Computation succeeded: " ++ show r            -- Report success with results
-    Nothing -> "Computation failed with rollbacks."          -- Report failure
+    Just r -> "Evaluation succeeded: " ++ show r            -- Report success with results
+    Nothing -> "Evaluation failed and Rescinded"            -- Report failure

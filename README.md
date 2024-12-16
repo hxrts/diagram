@@ -5,7 +5,7 @@
 A DAG-based evaluation system for distributed computation that handles subgraph dependency and atomicity.
 
 Programs are modeled as a directed acyclic graph (DAG) where nodes represent atomically evaluated units and edges are dependencies between nodes expressed as a partial order. Subgraphs can themselves be nodes by declaring atomicity of that group.
-Machines are distinct concept, analogous to an independent state machine. Each machine can lock resources, commit operations, rollback on failure, and send messages to free remote resources.
+Machines are analogous to chains or state machines. Each machine can lock resources, commit operations, rescind on failure, and send messages to free remote resources.
 
 The program graph defined in the configuration json file has two abstractions:
   - `Concurrency`: sibling nodes in Concurrent blocks are not dependent and can run independent of one another
@@ -18,12 +18,12 @@ The environment is prepared by reading a configuration file that defines the mac
 Machines are initialized with their respective MachineIDs, program subgraphs, the latency at which they operate, and their accepted timeouts. Each machine is responsible for executing specific tasks defined in the DAG.
 
 **Program Evaluation**
-The DAG is executed node-by-node, respecting dependencies and block constraints. Computations are executed on the correct machines via `scheduleMachine`. Rollbacks are triggered when a timeout or failure occurs, ensuring consistent system state.
+The DAG is executed node-by-node, respecting dependencies and block constraints. Computations are executed on the correct machines via `scheduleMachine`. Rescinds are triggered when a timeout or failure occurs, ensuring consistent system state.
 
 ## Files
 - **`Main.hs`**: Main entry point of the program. Reads a configuration file, initializes the DAG, schedules tasks on machines, and executes the computation.
 - **`ProgramInstantiation.hs`**: Converts the configuration file into machine configurations and program schedules that are used to initialize the program environment.
-- **`ProgramEvaluation.hs`**: Implements the evaluation logic, including atomicity, concurrency, rollbacks, and freeing.
+- **`ProgramEvaluation.hs`**: Implements the evaluation logic, including atomicity, concurrency, rescinds, and freeing.
 - **`Spec.hs`**: Defines the test suite for validating program behavior.
 - **`TrainHotelRetry.json`**: Simulates a retry scenario where the first booking attempt fails due to a timeout, and the second booking attempt succeeds.
 
@@ -44,12 +44,12 @@ This test simulates a scenario where a train booking from Berlin to Amsterdam mu
 graph TD
     subgraph Atomic Block 2
         C[MachineA: Train Berlin to Paris Hold]
-        D[MachineC: Paris Hotel Reserve]
+        D[MachineC: Paris Hotel Hold]
         C --> D
     end
     subgraph Atomic Block 1
         A[MachineA: Train Berlin to Amsterdam Hold]
-        B[MachineB: Amsterdam Hotel Reserve]
+        B[MachineB: Amsterdam Hotel Hold]
         A --> B
     end
 ```
@@ -64,21 +64,21 @@ Begin program evaluation
 MachineID: MachineA
 Latency: 100
 Timeout: 400
-Subgraph: Node "MachineA" (DistributedIO {lock = <function>, commit = <function>, rollback = <function>, free = <function>}) [Node "MachineB" (DistributedIO {lock = <function>, commit = <function>, rollback = <function>, free = <function>}) []]
+Subgraph: Node "MachineA" (DistributedIO {lock = <function>, commit = <function>, rescind = <function>, free = <function>}) [Node "MachineB" (DistributedIO {lock = <function>, commit = <function>, rescind = <function>, free = <function>}) []]
 MachineID: MachineA
 Latency: 100
 Timeout: 400
-Subgraph: Node "MachineA" (DistributedIO {lock = <function>, commit = <function>, rollback = <function>, free = <function>}) [Node "MachineC" (DistributedIO {lock = <function>, commit = <function>, rollback = <function>, free = <function>}) []]
+Subgraph: Node "MachineA" (DistributedIO {lock = <function>, commit = <function>, rescind = <function>, free = <function>}) [Node "MachineC" (DistributedIO {lock = <function>, commit = <function>, rescind = <function>, free = <function>}) []]
 Machine MachineA locking: Train Berlin to Amsterdam Hold
-Machine MachineB locking: Amsterdam Hotel Reserve
-Machine MachineA rolling back: Train Berlin to Amsterdam Hold Canceled
-Machine MachineB rolling back: Amsterdam Hotel Reservation Canceled
+Machine MachineB locking: Amsterdam Hotel Hold
+Machine MachineA rescinding: Train Berlin to Amsterdam Hold Canceled
+Machine MachineB rescinding: Amsterdam Hotel Hold Canceled
 Machine MachineA locking: Train Berlin to Paris Hold
-Machine MachineC locking: Paris Hotel Reserve
+Machine MachineC locking: Paris Hotel Hold
 Machine MachineA committing: Train Berlin to Paris Hold
-Machine MachineC committing: Paris Hotel Reserve
+Machine MachineC committing: Paris Hotel Hold
 Evaluating distributed computation...
-Computation succeeded: ["Committed by MachineA: Train Berlin to Paris Hold","Committed by MachineC: Paris Hotel Reserve"]
+Computation succeeded: ["Committed by MachineA: Train Berlin to Paris Hold","Committed by MachineC: Paris Hotel Hold"]
 
 Distributed Computation Framework
   retries Train and Hotel Booking after initial failure

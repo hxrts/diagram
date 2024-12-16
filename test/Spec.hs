@@ -43,7 +43,7 @@ printMachineConfig machineConfigs (machineID, subgraph) = do
   let config = case lookup machineID (map (\mc -> (machineID mc, mc)) machineConfigs) of
                  Just mc -> mc
                  Nothing -> error $ "Configuration not found for machine " ++ machineID
-  putStrLn $ "\nMachineID: " ++ machineID
+  putStrLn $ "MachineID: " ++ machineID
   putStrLn $ "Latency: " ++ show (latency config)
   putStrLn $ "Timeout: " ++ show (timeout config)
   putStrLn $ "Subgraph: " ++ show subgraph
@@ -51,7 +51,7 @@ printMachineConfig machineConfigs (machineID, subgraph) = do
 -- Test suite
 main :: IO ()
 main = hspec $ do
-  describe "\nBegin program evaluation" $ do
+  describe "Begin program evaluation" $ do
     -- Test case for retrying Train and Hotel Booking after initial failure
     it "retries Train and Hotel Booking after initial failure" $ do
       (result, output) <- loadAndEvaluateConfig "test/TrainHotelRetry.json"
