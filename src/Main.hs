@@ -57,13 +57,12 @@ generateControlFlowGraph graph =
 
 -- Function to generate the execution path graph
 generateExecutionPathGraph :: [Either SomeException a] -> EvalGraph a -> GraphViz.DotGraph String
-generateExecutionPathGraph results graph =
-  GraphViz.graphElemsToDot GraphViz.nonClusteredParams convertedNodes convertedEdges
+generateExecutionPathGraph results graph = GraphViz.graphElemsToDot GraphViz.nonClusteredParams convertedNodes numberedEdges
   where
     (nodes, edges) = graphToNodesEdges graph
     executedNodes = getExecutedNodes results (map (\(GraphViz.DotNode n _) -> (n, n)) nodes)
     convertedNodes = map (\(GraphViz.DotNode nodeId attrs) -> (nodeId, attrs)) nodes
-    convertedEdges = map (\(f, t) -> (f, t, ())) edges
+    numberedEdges = zipWith (\(f, t) i -> (f, t, [GraphViz.toLabel (show i)])) edges [1..]
 
 -- Helper function to convert EvalGraph to nodes and edges
 graphToNodesEdges :: EvalGraph a -> ([GraphViz.DotNode String], [(String, String)])
@@ -110,7 +109,7 @@ main = do
 
   -- Generate and save the control flow graph
   let controlFlowGraph = generateControlFlowGraph graph
-  writeFile "control_flow_graph.dot" (unpack $ renderDot $ toDot controlFlowGraph)
+  writeFile "out/control_flow_graph.dot" (unpack $ renderDot $ toDot controlFlowGraph)
 
   -- Evaluate the graph
   putStrLn "Starting the reservation process..."
@@ -118,7 +117,7 @@ main = do
 
   -- Generate and save the execution path graph
   let executionPathGraph = generateExecutionPathGraph results graph
-  writeFile "execution_path_graph.dot" (unpack $ renderDot $ toDot executionPathGraph)
+  writeFile "out/execution_path_graph.dot" (unpack $ renderDot $ toDot executionPathGraph)
 
   -- Output the results
   putStrLn "\n==> Final Results:"
