@@ -12,24 +12,8 @@ common warnings
     ghc-options: -Wall
 
 executable diagram
-    import:           warnings
     main-is:          Main.hs
     hs-source-dirs:   src
     build-depends:    base ^>=4.18.2.1,
-                      async,
-                      aeson,
-                      bytestring >=0.11.0.0
-    other-modules:    ProgramInstantiation, ProgramEvaluation
+                      async
     default-language: Haskell2010
-
-test-suite diagram-tests
-  main-is:             Spec.hs
-  hs-source-dirs:      test, src
-  build-depends:       base ^>=4.18.2.1,
-                       async,
-                       aeson,
-                       bytestring >=0.11.0.0,
-                       hspec
-  other-modules:       ProgramInstantiation, ProgramEvaluation
-  default-language:    Haskell2010
-  type:                exitcode-stdio-1.0
