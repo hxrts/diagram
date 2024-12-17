@@ -9,10 +9,13 @@ Machines are analogous to chains or state machines. Each machine can lock and fr
 
 ## Install and Run
 Clone the repo and run the following command to create a development shell with all the necessary dependencies:
+
 ```bash
 nix develop
 ```
+
 Run the Application with a configuration file that includes the node setup and program definition:
+
 ```bash
 nix run
 ```

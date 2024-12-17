@@ -8,9 +8,15 @@ module Main where
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Exception (SomeException, try)
 import Data.List (isInfixOf)
+import System.IO (writeFile)
+import qualified Data.GraphViz as GraphViz
+import Data.GraphViz.Printing (renderDot, toDot)
+import Data.Text.Lazy (unpack)
+import Data.Graph.Inductive.Graph (mkGraph, LNode, LEdge)
+import Data.Graph.Inductive.PatriciaTree (Gr)
 
 -- --------------------------------------
--- Main entry point
+-- Definitions
 -- --------------------------------------
 
 -- Distributed actions to simulate holds and reservations
@@ -36,6 +42,57 @@ trainHotelBooking city trainMachine hotelMachine =
       Node hotelMachine (releaseHold "hotel" city) []
     ])
 
+-- --------------------------------------
+-- Graphing functions
+-- --------------------------------------
+
+-- Function to generate the control flow graph
+generateControlFlowGraph :: EvalGraph a -> GraphViz.DotGraph String
+generateControlFlowGraph graph =
+  GraphViz.graphElemsToDot GraphViz.nonClusteredParams convertedNodes convertedEdges
+  where
+    (nodes, edges) = graphToNodesEdges graph
+    convertedNodes = map (\(GraphViz.DotNode nodeId attrs) -> (nodeId, attrs)) nodes
+    convertedEdges = map (\(f, t) -> (f, t, ())) edges
+
+-- Function to generate the execution path graph
+generateExecutionPathGraph :: [Either SomeException a] -> EvalGraph a -> GraphViz.DotGraph String
+generateExecutionPathGraph results graph =
+  GraphViz.graphElemsToDot GraphViz.nonClusteredParams convertedNodes convertedEdges
+  where
+    (nodes, edges) = graphToNodesEdges graph
+    executedNodes = getExecutedNodes results (map (\(GraphViz.DotNode n _) -> (n, n)) nodes)
+    convertedNodes = map (\(GraphViz.DotNode nodeId attrs) -> (nodeId, attrs)) nodes
+    convertedEdges = map (\(f, t) -> (f, t, ())) edges
+
+-- Helper function to convert EvalGraph to nodes and edges
+graphToNodesEdges :: EvalGraph a -> ([GraphViz.DotNode String], [(String, String)])
+graphToNodesEdges = go ""
+  where
+    go parent (Node machine _ children) =
+      let nodeId = machine
+          nodeLabel = machine
+          childResults = map (go nodeId) children
+          childNodes = concatMap fst childResults
+          childEdges = concatMap snd childResults
+          edges = if null parent then [] else [(parent, nodeId)]
+      in ((GraphViz.DotNode nodeId [GraphViz.toLabel nodeLabel]) : childNodes, edges ++ childEdges)
+    go parent (Atomic subgraph) = go parent subgraph
+    go parent (Concurrent subgraphs) =
+      let results = map (go parent) subgraphs
+      in (concatMap fst results, concatMap snd results)
+
+-- Helper function to get executed nodes based on results
+getExecutedNodes :: [Either SomeException a] -> [(String, String)] -> [(String, String)]
+getExecutedNodes results nodes = filter (\(n, _) -> any (isNodeExecuted n) results) nodes
+  where
+    isNodeExecuted node (Right _) = True
+    isNodeExecuted _ _ = False
+
+-- --------------------------------------
+-- Main entry point
+-- --------------------------------------
+
 -- Main program logic
 main :: IO ()
 main = do
@@ -51,9 +108,17 @@ main = do
                   amsterdamBooking -- Fallback to Amsterdam
               ]
 
+  -- Generate and save the control flow graph
+  let controlFlowGraph = generateControlFlowGraph graph
+  writeFile "control_flow_graph.dot" (unpack $ renderDot $ toDot controlFlowGraph)
+
   -- Evaluate the graph
   putStrLn "Starting the reservation process..."
   results <- evaluateGraph faultyMachines graph
+
+  -- Generate and save the execution path graph
+  let executionPathGraph = generateExecutionPathGraph results graph
+  writeFile "execution_path_graph.dot" (unpack $ renderDot $ toDot executionPathGraph)
 
   -- Output the results
   putStrLn "\n==> Final Results:"
