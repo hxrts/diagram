@@ -1,13 +1,13 @@
 # diagram
 
-![radar image of a butterfly swarm](./radar.jpg)
+![radar image of a butterfly swarm](./radar.jpg "Radar image of a butterfly swarm")
 
 ## Overview
 
 A DAG-based evaluation system for distributed computation that handles dependency and atomicity.
 
-Programs are modeled as a directed acyclic graph (DAG) where nodes represent atomically evaluated units and edges are dependencies between nodes, expressed as a partial order. Subgraphs can themselves be nodes by declaring atomicity of that group.
-Machines are analogous to chains or state machines. Each machine can lock and free resources, commit operations, rescind on failure to free remote resource locks.
+Programs are modeled as a directed acyclic graph where nodes represent atomically evaluated units and edges are dependencies between them, expressed as a partial order. Subgraphs can themselves be nodes by declaring atomicity of that group.
+Machines are analogous to chains or state machines. Each machine can lock and free resources, commit operations, and rescind on failure to free remote resource locks.
 
 ## Install and Run
 
