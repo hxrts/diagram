@@ -1,0 +1,27 @@
+digraph {
+    MachineA;
+    MachineA;
+    MachineB;
+    MachineA;
+    MachineB;
+    MachineA;
+    MachineB;
+    MachineA;
+    MachineC;
+    MachineA;
+    MachineC;
+    MachineA;
+    MachineC;
+    MachineA -> MachineA;
+    MachineA -> MachineB;
+    MachineA -> MachineA;
+    MachineA -> MachineB;
+    MachineA -> MachineA;
+    MachineA -> MachineB;
+    MachineA -> MachineA;
+    MachineA -> MachineC;
+    MachineA -> MachineA;
+    MachineA -> MachineC;
+    MachineA -> MachineA;
+    MachineA -> MachineC;
+}
