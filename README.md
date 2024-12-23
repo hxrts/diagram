@@ -1,10 +1,8 @@
 **Note: This project currently compiles and evaluates a distributed program, however I'm still working on getting the plotting to produce something useful. I also want to rework how conditional evaluation works**
 
-# diagram
-
 ![radar image of a butterfly swarm](./radar.jpg "Radar image of a butterfly swarm")
 
-## Overview
+# diagram
 
 A DAG-based evaluation system for distributed computation that handles partial order and atomicity of evaluation.
 
